@@ -1,6 +1,6 @@
-
 # coding: utf-8
 from __future__ import print_function
+from __future__ import division
 import tensorflow as tf
 from nets import nets_factory
 from preprocessing import preprocessing_factory
@@ -38,7 +38,7 @@ def main(_):
     with tf.Graph().as_default():
         with tf.Session().as_default() as sess:
             preprocessing_name = FLAGS.preprocessing_name or FLAGS.model_name
-            image_preprocessing_fn = preprocessing_factory.get_preprocessing(
+            image_preprocessing_fn, _ = preprocessing_factory.get_preprocessing(
                 preprocessing_name,
                 is_training=False)
             image = reader.get_image(FLAGS.image_file, height, width, image_preprocessing_fn)

@@ -344,10 +344,6 @@ def preprocess_for_eval(image, output_height, output_width, resize_side):
       output_height: The height of the image after preprocessing.
       output_width: The width of the image after preprocessing.
 
-    UseLess: resize_side.
-
-    Tf-fns: We use "resize_image_with_crop_or_pad" to apply crop.
-
     Returns:
       A preprocessed image.
     """

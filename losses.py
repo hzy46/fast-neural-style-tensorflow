@@ -9,7 +9,10 @@ slim = tf.contrib.slim
 
 
 def _smallest_size_at_least(height, width, smallest_side):
-    """Computes new shape with the smallest side equal to `smallest_side`.
+    """
+    This function is copied from TF slim.
+
+    Computes new shape with the smallest side equal to `smallest_side`.
 
     Computes new shape with the smallest side equal to `smallest_side` while
     preserving the original aspect ratio.
@@ -39,7 +42,10 @@ def _smallest_size_at_least(height, width, smallest_side):
 
 
 def _aspect_preserving_resize(image, smallest_side):
-    """Resize images preserving the original aspect ratio.
+    """
+    This function is copied from TF slim.
+
+    Resize images preserving the original aspect ratio.
 
     Args:
       image: A 3-D image `Tensor`.
@@ -86,11 +92,9 @@ def get_style_features(FLAGS):
             FLAGS.model_name,
             num_classes=1,
             is_training=False)
-        preprocessing_name = FLAGS.preprocessing_name or FLAGS.model_name
-        image_preprocessing_fn = preprocessing_factory.get_preprocessing(
-            preprocessing_name,
+        image_preprocessing_fn, image_unprocessing_fn = preprocessing_factory.get_preprocessing(
+            FLAGS.model_name,
             is_training=False)
-        image_unprocessing_fn = preprocessing_factory.get_unprocessing(preprocessing_name)
 
         size = FLAGS.image_size
         img_bytes = tf.read_file(FLAGS.style_image)
@@ -110,11 +114,12 @@ def get_style_features(FLAGS):
         with tf.Session() as sess:
             init_func = utils._get_init_fn(FLAGS)
             init_func(sess)
-            with open('generated/target_style.jpg', 'wb') as f:
+            save_file = 'generated/target_style_' + FLAGS.naming + '.jpg'
+            with open(save_file, 'wb') as f:
                 target_image = image_unprocessing_fn(images[0, :])
                 value = tf.image.encode_jpeg(tf.cast(target_image, tf.uint8))
                 f.write(sess.run(value))
-                tf.logging.info('Target style pattern is saved to: %s.' % 'generated/target_style.jpg')
+                tf.logging.info('Target style pattern is saved to: %s.' % save_file)
             return sess.run(features)
 
 
