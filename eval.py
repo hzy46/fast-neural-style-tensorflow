@@ -1,6 +1,5 @@
 # coding: utf-8
 from __future__ import print_function
-from __future__ import division
 import tensorflow as tf
 from nets import nets_factory
 from preprocessing import preprocessing_factory
