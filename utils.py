@@ -1,6 +1,8 @@
 import tensorflow as tf
+import yaml
 
 slim = tf.contrib.slim
+
 
 def _get_init_fn(FLAGS):
     """
@@ -14,7 +16,7 @@ def _get_init_fn(FLAGS):
     Returns:
       An init function run by the supervisor.
     """
-    tf.logging.info('Use pretrained model %s' % FLAGS.pretrained_path)
+    tf.logging.info('Use pretrained model %s' % FLAGS.loss_model_file)
 
     exclusions = []
     if FLAGS.checkpoint_exclude_scopes:
@@ -33,6 +35,22 @@ def _get_init_fn(FLAGS):
             variables_to_restore.append(var)
 
     return slim.assign_from_checkpoint_fn(
-        FLAGS.pretrained_path,
+        FLAGS.loss_model_file,
         variables_to_restore,
         ignore_missing_vars=True)
+
+
+class Flag(object):
+    def __init__(self, **entries):
+        self.__dict__.update(entries)
+
+
+def read_conf_file(conf_file):
+    with open(conf_file) as f:
+        FLAGS = Flag(**yaml.load(f))
+    return FLAGS
+
+
+if __name__ == '__main__':
+    f = read_conf_file('conf/mosaic.yml')
+    print(f.loss_model_file)

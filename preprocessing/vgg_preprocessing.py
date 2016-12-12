@@ -196,7 +196,6 @@ def _central_crop(image_list, crop_height, crop_width):
 
         offset_height = (image_height - crop_height) / 2
         offset_width = (image_width - crop_width) / 2
-        print(image_height, image_width, crop_height, crop_width)
         outputs.append(_crop(image, offset_height, offset_width,
                              crop_height, crop_width))
     return outputs

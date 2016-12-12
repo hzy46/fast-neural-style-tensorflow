@@ -6,15 +6,11 @@ from preprocessing import preprocessing_factory
 import reader
 import model
 import time
+import os
 
-tf.app.flags.DEFINE_string('model_name', 'vgg_16', 'The name of the architecture to evaluate. '
+tf.app.flags.DEFINE_string('loss_model', 'vgg_16', 'The name of the architecture to evaluate. '
                            'You can view all the support models in nets/nets_factory.py')
 tf.app.flags.DEFINE_integer('image_size', 256, 'Image size to train.')
-
-tf.app.flags.DEFINE_string(
-    'preprocessing_name', None, 'The name of the preprocessing to use. If left '
-    'as `None`, then the model_name flag is used.')
-
 tf.app.flags.DEFINE_string("model_file", "models.ckpt", "")
 tf.app.flags.DEFINE_string("image_file", "a.jpg", "")
 
@@ -36,9 +32,8 @@ def main(_):
 
     with tf.Graph().as_default():
         with tf.Session().as_default() as sess:
-            preprocessing_name = FLAGS.preprocessing_name or FLAGS.model_name
             image_preprocessing_fn, _ = preprocessing_factory.get_preprocessing(
-                preprocessing_name,
+                FLAGS.loss_model,
                 is_training=False)
             image = reader.get_image(FLAGS.image_file, height, width, image_preprocessing_fn)
             image = tf.expand_dims(image, 0)
@@ -53,6 +48,8 @@ def main(_):
             end_time = time.time()
             tf.logging.info('Elapsed time: %fs' % (end_time - start_time))
             generated_file = 'generated/res.jpg'
+            if os.path.exists('generated') is False:
+                os.makedirs('generated')
             with open(generated_file, 'wb') as img:
                 img.write(sess.run(tf.image.encode_jpeg(generated)))
                 tf.logging.info('Done. Please check %s.' % generated_file)

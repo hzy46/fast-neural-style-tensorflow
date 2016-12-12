@@ -10,37 +10,18 @@ import time
 import losses
 import utils
 import os
+import argparse
 
 slim = tf.contrib.slim
 
-tf.app.flags.DEFINE_string('naming', 'mosaic', '')
-tf.app.flags.DEFINE_string('model_name', 'vgg_16', 'The name of the architecture to evaluate. '
-                           'You can view all the support models in nets/nets_factory.py')
-tf.app.flags.DEFINE_integer('image_size', 256, 'Image size to train.')
-tf.app.flags.DEFINE_integer('batch_size', 4, 'batch size to train.')
-tf.app.flags.DEFINE_string("content_layers", "vgg_16/conv3/conv3_3",
-                           "Which VGG layer to extract content loss from")
-tf.app.flags.DEFINE_string("style_layers", "vgg_16/conv1/conv1_2,vgg_16/conv2/conv2_2,vgg_16/conv3/conv3_3,vgg_16/conv4/conv4_3",
-                           "Which layers to extract style from")
-tf.app.flags.DEFINE_string("pretrained_path", "pretrained/vgg_16.ckpt", "pretrained path")
-tf.app.flags.DEFINE_string("style_image", "img/mosaic.jpg", "Style to train")
-tf.app.flags.DEFINE_string(
-    'checkpoint_exclude_scopes', 'vgg_16/fc',
-    'Comma-separated list of scopes of variables to exclude when restoring '
-    'from a checkpoint.')
 
-tf.app.flags.DEFINE_integer("CONTENT_WEIGHT", 1, "Weight for content features loss")
-tf.app.flags.DEFINE_integer("STYLE_WEIGHT", 20, "Weight for style features loss")
-tf.app.flags.DEFINE_integer("TV_WEIGHT", 0.0, "Weight for total variation loss")
-tf.app.flags.DEFINE_integer("EPOCH", 2, "EPOCH")
-tf.app.flags.DEFINE_string("model_path", "models", "Path to read/write trained models")
-
-FLAGS = tf.app.flags.FLAGS
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--conf', default='conf/mosaic.yml', help='the path to the conf file')
+    return parser.parse_args()
 
 
-def main(_):
-    FLAGS.style_layers = FLAGS.style_layers.split(',')
-    FLAGS.content_layers = FLAGS.content_layers.split(',')
+def main(FLAGS):
     style_features_t = losses.get_style_features(FLAGS)
     training_path = os.path.join(FLAGS.model_path, FLAGS.naming)
     if not(os.path.exists(training_path)):
@@ -51,36 +32,40 @@ def main(_):
             """最后可以试下这个sess是不是可以放到后面去"""
             """Build Network"""
             network_fn = nets_factory.get_network_fn(
-                FLAGS.model_name,
+                FLAGS.loss_model,
                 num_classes=1,
                 is_training=False)
 
             image_preprocessing_fn, image_unprocessing_fn = preprocessing_factory.get_preprocessing(
-                FLAGS.model_name,
+                FLAGS.loss_model,
                 is_training=False)
-            processed_images = reader.image(FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 'train2014/', image_preprocessing_fn)
+            processed_images = reader.image(FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size,
+                                            'train2014/', image_preprocessing_fn, epochs=FLAGS.epoch)
             generated = model.net(processed_images, training=True)
             processed_generated = [image_preprocessing_fn(image, FLAGS.image_size, FLAGS.image_size)
                                    for image in tf.unpack(generated, axis=0, num=FLAGS.batch_size)
                                    ]
             processed_generated = tf.pack(processed_generated)
             _, endpoints_dict = network_fn(tf.concat(0, [processed_generated, processed_images]), spatial_squeeze=False)
+            tf.logging.info('Loss network layers(You can define them in "content_layers" and "style_layers"):')
+            for key in endpoints_dict:
+                tf.logging.info(key)
 
             """Build Losses"""
             content_loss = losses.content_loss(endpoints_dict, FLAGS.content_layers)
             style_loss, style_loss_summary = losses.style_loss(endpoints_dict, style_features_t, FLAGS.style_layers)
             tv_loss = losses.total_variation_loss(generated)  # use the unprocessed image
 
-            loss = FLAGS.STYLE_WEIGHT * style_loss + FLAGS.CONTENT_WEIGHT * content_loss + FLAGS.TV_WEIGHT * tv_loss
+            loss = FLAGS.style_weight * style_loss + FLAGS.content_weight * content_loss + FLAGS.tv_weight * tv_loss
 
             """Add Summary"""
             tf.scalar_summary('losses/content loss', content_loss)
             tf.scalar_summary('losses/style loss', style_loss)
             tf.scalar_summary('losses/regularizer loss', tv_loss)
 
-            tf.scalar_summary('weighted_losses/weighted content loss', content_loss * FLAGS.CONTENT_WEIGHT)
-            tf.scalar_summary('weighted_losses/weighted style loss', style_loss * FLAGS.STYLE_WEIGHT)
-            tf.scalar_summary('weighted_losses/weighted regularizer loss', tv_loss * FLAGS.TV_WEIGHT)
+            tf.scalar_summary('weighted_losses/weighted content loss', content_loss * FLAGS.content_weight)
+            tf.scalar_summary('weighted_losses/weighted style loss', style_loss * FLAGS.style_weight)
+            tf.scalar_summary('weighted_losses/weighted regularizer loss', tv_loss * FLAGS.tv_weight)
             tf.scalar_summary('total loss', loss)
             for layer in FLAGS.style_layers:
                 tf.scalar_summary('style_losses/' + layer, style_loss_summary[layer])
@@ -96,14 +81,14 @@ def main(_):
             global_step = tf.Variable(0, name="global_step", trainable=False)
             variable_to_train = []
             for variable in tf.trainable_variables():
-                if not(variable.name.startswith(FLAGS.model_name)):
+                if not(variable.name.startswith(FLAGS.loss_model)):
                     variable_to_train.append(variable)
 
             train_op = tf.train.AdamOptimizer(1e-3).minimize(loss, global_step=global_step, var_list=variable_to_train)
 
             variables_to_restore = []
             for v in tf.all_variables():
-                if not(v.name.startswith(FLAGS.model_name)):
+                if not(v.name.startswith(FLAGS.loss_model)):
                     variables_to_restore.append(v)
             saver = tf.train.Saver(variables_to_restore)
             sess.run([tf.initialize_all_variables(), tf.initialize_local_variables()])
@@ -136,7 +121,7 @@ def main(_):
                     if step % 1000 == 0:
                         saver.save(sess, os.path.join(training_path, 'fast-style-model.ckpt'), global_step=step)
             except tf.errors.OutOfRangeError:
-                saver.save(sess, os.path.join(training_path + 'fast-style-model.ckpt'), global_step=step)
+                saver.save(sess, os.path.join(training_path, 'fast-style-model.ckpt-done'))
                 tf.logging.info('Done training -- epoch limit reached')
             finally:
                 coord.request_stop()
@@ -145,4 +130,6 @@ def main(_):
 
 if __name__ == '__main__':
     tf.logging.set_verbosity(tf.logging.INFO)
-    tf.app.run()
+    args = parse_args()
+    FLAGS = utils.read_conf_file(args.conf)
+    main(FLAGS)
