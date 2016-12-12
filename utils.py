@@ -32,9 +32,6 @@ def _get_init_fn(FLAGS):
         if not excluded:
             variables_to_restore.append(var)
 
-    print('Restored pretrained variable:')
-    print([v.name for v in variables_to_restore])
-
     return slim.assign_from_checkpoint_fn(
         FLAGS.pretrained_path,
         variables_to_restore,

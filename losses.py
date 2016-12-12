@@ -8,67 +8,6 @@ import utils
 slim = tf.contrib.slim
 
 
-def _smallest_size_at_least(height, width, smallest_side):
-    """
-    This function is copied from TF slim.
-
-    Computes new shape with the smallest side equal to `smallest_side`.
-
-    Computes new shape with the smallest side equal to `smallest_side` while
-    preserving the original aspect ratio.
-
-    Args:
-      height: an int32 scalar tensor indicating the current height.
-      width: an int32 scalar tensor indicating the current width.
-      smallest_side: A python integer or scalar `Tensor` indicating the size of
-        the smallest side after resize.
-
-    Returns:
-      new_height: an int32 scalar tensor indicating the new height.
-      new_width: and int32 scalar tensor indicating the new width.
-    """
-    smallest_side = tf.convert_to_tensor(smallest_side, dtype=tf.int32)
-
-    height = tf.to_float(height)
-    width = tf.to_float(width)
-    smallest_side = tf.to_float(smallest_side)
-
-    scale = tf.cond(tf.greater(height, width),
-                    lambda: smallest_side / width,
-                    lambda: smallest_side / height)
-    new_height = tf.to_int32(height * scale)
-    new_width = tf.to_int32(width * scale)
-    return new_height, new_width
-
-
-def _aspect_preserving_resize(image, smallest_side):
-    """
-    This function is copied from TF slim.
-
-    Resize images preserving the original aspect ratio.
-
-    Args:
-      image: A 3-D image `Tensor`.
-      smallest_side: A python integer or scalar `Tensor` indicating the size of
-        the smallest side after resize.
-
-    Returns:
-      resized_image: A 3-D tensor containing the resized image.
-    """
-    smallest_side = tf.convert_to_tensor(smallest_side, dtype=tf.int32)
-
-    shape = tf.shape(image)
-    height = shape[0]
-    width = shape[1]
-    new_height, new_width = _smallest_size_at_least(height, width, smallest_side)
-    image = tf.expand_dims(image, 0)
-    resized_image = tf.image.resize_bilinear(image, [new_height, new_width],
-                                             align_corners=False)
-    resized_image = tf.squeeze(resized_image)
-    resized_image.set_shape([None, None, 3])
-    return resized_image
-
-
 def gram(layer):
     shape = tf.shape(layer)
     num_images = shape[0]
@@ -102,7 +41,7 @@ def get_style_features(FLAGS):
             image = tf.image.decode_png(img_bytes)
         else:
             image = tf.image.decode_jpeg(img_bytes)
-        image = _aspect_preserving_resize(image, size)
+        # image = _aspect_preserving_resize(image, size)
         images = tf.pack([image_preprocessing_fn(image, size, size)])
         _, endpoints_dict = network_fn(images, spatial_squeeze=False)
         features = []

@@ -248,7 +248,7 @@ def _mean_image_add(image, means):
     return tf.concat(2, channels)
 
 
-def _smallest_size_at_least(height, width, smallest_side):
+def _smallest_size_at_least(height, width, target_height, target_width):
     """Computes new shape with the smallest side equal to `smallest_side`.
 
     Computes new shape with the smallest side equal to `smallest_side` while
@@ -264,21 +264,23 @@ def _smallest_size_at_least(height, width, smallest_side):
       new_height: an int32 scalar tensor indicating the new height.
       new_width: and int32 scalar tensor indicating the new width.
     """
-    smallest_side = tf.convert_to_tensor(smallest_side, dtype=tf.int32)
+    target_height = tf.convert_to_tensor(target_height, dtype=tf.int32)
+    target_width = tf.convert_to_tensor(target_width, dtype=tf.int32)
 
     height = tf.to_float(height)
     width = tf.to_float(width)
-    smallest_side = tf.to_float(smallest_side)
+    target_height = tf.to_float(target_height)
+    target_width = tf.to_float(target_width)
 
-    scale = tf.cond(tf.greater(height, width),
-                    lambda: smallest_side / width,
-                    lambda: smallest_side / height)
-    new_height = tf.to_int32(height * scale)
-    new_width = tf.to_int32(width * scale)
+    scale = tf.cond(tf.greater(target_height / height, target_width / width),
+                    lambda: target_height / height,
+                    lambda: target_width / width)
+    new_height = tf.to_int32(tf.round(height * scale))
+    new_width = tf.to_int32(tf.round(width * scale))
     return new_height, new_width
 
 
-def _aspect_preserving_resize(image, smallest_side):
+def _aspect_preserving_resize(image, target_height, target_width):
     """Resize images preserving the original aspect ratio.
 
     Args:
@@ -289,12 +291,13 @@ def _aspect_preserving_resize(image, smallest_side):
     Returns:
       resized_image: A 3-D tensor containing the resized image.
     """
-    smallest_side = tf.convert_to_tensor(smallest_side, dtype=tf.int32)
+    target_height = tf.convert_to_tensor(target_height, dtype=tf.int32)
+    target_width = tf.convert_to_tensor(target_width, dtype=tf.int32)
 
     shape = tf.shape(image)
     height = shape[0]
     width = shape[1]
-    new_height, new_width = _smallest_size_at_least(height, width, smallest_side)
+    new_height, new_width = _smallest_size_at_least(height, width, target_height, target_width)
     image = tf.expand_dims(image, 0)
     resized_image = tf.image.resize_bilinear(image, [new_height, new_width],
                                              align_corners=False)
@@ -347,9 +350,9 @@ def preprocess_for_eval(image, output_height, output_width, resize_side):
     Returns:
       A preprocessed image.
     """
-    # image = _aspect_preserving_resize(image, resize_side)
-    # image = _central_crop([image], output_height, output_width)[0]
-    image = tf.image.resize_image_with_crop_or_pad(image, output_height, output_width)
+    image = _aspect_preserving_resize(image, output_height, output_width)
+    image = _central_crop([image], output_height, output_width)[0]
+    # image = tf.image.resize_image_with_crop_or_pad(image, output_height, output_width)
     image.set_shape([output_height, output_width, 3])
     image = tf.to_float(image)
     return _mean_image_subtraction(image, [_R_MEAN, _G_MEAN, _B_MEAN])

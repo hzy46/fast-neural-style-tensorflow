@@ -32,7 +32,7 @@ tf.app.flags.DEFINE_string(
 tf.app.flags.DEFINE_integer("CONTENT_WEIGHT", 1, "Weight for content features loss")
 tf.app.flags.DEFINE_integer("STYLE_WEIGHT", 20, "Weight for style features loss")
 tf.app.flags.DEFINE_integer("TV_WEIGHT", 0.0, "Weight for total variation loss")
-tf.app.flags.DEFINE_integer("EPOCH", 1, "EPOCH")
+tf.app.flags.DEFINE_integer("EPOCH", 2, "EPOCH")
 tf.app.flags.DEFINE_string("model_path", "models", "Path to read/write trained models")
 
 FLAGS = tf.app.flags.FLAGS
@@ -85,7 +85,7 @@ def main(_):
             for layer in FLAGS.style_layers:
                 tf.scalar_summary('style_losses/' + layer, style_loss_summary[layer])
             tf.image_summary('generated', generated)
-            tf.image_summary('processed_generated', processed_generated)  # May be better?
+            # tf.image_summary('processed_generated', processed_generated)  # May be better?
             tf.image_summary('origin', tf.pack([
                 image_unprocessing_fn(image) for image in tf.unpack(processed_images, axis=0, num=FLAGS.batch_size)
             ]))
@@ -111,14 +111,13 @@ def main(_):
             init_func(sess)
             last_file = tf.train.latest_checkpoint(training_path)
             if last_file:
-                print('Restoring model from {}'.format(last_file))
+                tf.logging.info('Restoring model from {}'.format(last_file))
                 saver.restore(sess, last_file)
 
             """Start Training"""
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(coord=coord)
             start_time = time.time()
-            tf.logging.info([v.name for v in variable_to_train])
             try:
                 while not coord.should_stop():
                     _, loss_t, step = sess.run([train_op, loss, global_step])
@@ -129,7 +128,7 @@ def main(_):
                         tf.logging.info('step: %d,  total Loss %f, secs/step: %f' % (step, loss_t, elapsed_time))
                     """summary"""
                     if step % 25 == 0:
-                        tf.logging.info('add summary...')
+                        tf.logging.info('adding summary...')
                         summary_str = sess.run(summary)
                         writer.add_summary(summary_str, step)
                         writer.flush()
@@ -137,8 +136,8 @@ def main(_):
                     if step % 1000 == 0:
                         saver.save(sess, os.path.join(training_path, 'fast-style-model.ckpt'), global_step=step)
             except tf.errors.OutOfRangeError:
-                saver.save(sess, os.path.join(training_path + 'fast-style-model-done.ckpt'))
-                print('Done training -- epoch limit reached')
+                saver.save(sess, os.path.join(training_path + 'fast-style-model.ckpt'), global_step=step)
+                tf.logging.info('Done training -- epoch limit reached')
             finally:
                 coord.request_stop()
             coord.join(threads)
