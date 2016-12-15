@@ -26,8 +26,8 @@ def main(_):
                 image = sess.run(tf.image.decode_png(img.read()))
             else:
                 image = sess.run(tf.image.decode_jpeg(img.read()))
-                height = image.shape[0]
-                width = image.shape[1]
+            height = image.shape[0]
+            width = image.shape[1]
     tf.logging.info('Image size: %dx%d' % (width, height))
 
     with tf.Graph().as_default():
@@ -45,6 +45,7 @@ def main(_):
 
             start_time = time.time()
             generated = sess.run(generated)
+            generated = tf.cast(generated, tf.uint8)
             end_time = time.time()
             tf.logging.info('Elapsed time: %fs' % (end_time - start_time))
             generated_file = 'generated/res.jpg'
