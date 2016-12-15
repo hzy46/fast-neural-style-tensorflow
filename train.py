@@ -29,7 +29,6 @@ def main(FLAGS):
 
     with tf.Graph().as_default():
         with tf.Session() as sess:
-            """最后可以试下这个sess是不是可以放到后面去"""
             """Build Network"""
             network_fn = nets_factory.get_network_fn(
                 FLAGS.loss_model,
