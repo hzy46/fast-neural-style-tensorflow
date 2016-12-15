@@ -4,4 +4,51 @@ A tensorflow implementation for [Perceptual Losses for Real-Time Style Transfer 
 
 This code is based on [Tensorflow-Slim](https://github.com/tensorflow/models/tree/master/slim) and [OlavHN/fast-neural-style](https://github.com/OlavHN/fast-neural-style).
 
+## Requirements and Prerequisites
+- Python 2.7.x
+- Tensorflow(>= 0.11)
 
+And make sure you installed pyyaml:
+```
+pip install pyyaml
+```
+Download [VGG16 model](http://download.tensorflow.org/models/vgg_16_2016_08_28.tar.gz) from Tensorflow Slim. Extract the file vgg_16.ckpt. Then copy it to the folder pretrained/ :
+```
+cd <this repo>
+mkdir pretrained
+cp <your path to vgg_16.ckpt>  pretrained/
+```
+
+## Use Trained Models
+
+You can download all the 7 trained models from [Baidu Drive](https://pan.baidu.com/s/1i4GTS4d).
+
+To generate a sample from the model "wave.ckpt-done", run:
+
+```
+python eval.py --model_file <your path to wave.ckpt-done> --image_file img/test.jpg
+```
+
+Then check out generated/res.jpg.
+
+## Train a Model
+
+To train a model from scratch, you should first download the [COCO dataset](http://msvocds.blob.core.windows.net/coco2014/train2014.zip). Please unzip it, and you will have a folder named "train2014" with many raw images in it. Then create a symbol link to it:
+```
+cd <this repo>
+ln -s <your path to the folder "train2014"> train2014
+```
+
+Train the model of "wave":
+```
+python train.py -c conf/wave.yml
+```
+
+(Optional) Use tensorboard:
+```
+tensorboard --logdir models/wave
+```
+
+Checkpoints will be write to "models/wave".
+
+View the [configuration file](https://github.com/hzy46/fast-neural-style-tensorflow/blob/master/conf/wave.yml) for details.
