@@ -41,6 +41,7 @@ def main(_):
             generated = tf.squeeze(generated, [0])
             saver = tf.train.Saver(tf.all_variables())
             sess.run([tf.initialize_all_variables(), tf.initialize_local_variables()])
+            FLAGS.model_file = os.path.abspath(FLAGS.model_file)
             saver.restore(sess, FLAGS.model_file)
 
             start_time = time.time()
