@@ -42,10 +42,10 @@ def main(FLAGS):
                                             'train2014/', image_preprocessing_fn, epochs=FLAGS.epoch)
             generated = model.net(processed_images, training=True)
             processed_generated = [image_preprocessing_fn(image, FLAGS.image_size, FLAGS.image_size)
-                                   for image in tf.unpack(generated, axis=0, num=FLAGS.batch_size)
+                                   for image in tf.unstack(generated, axis=0, num=FLAGS.batch_size)
                                    ]
-            processed_generated = tf.pack(processed_generated)
-            _, endpoints_dict = network_fn(tf.concat(0, [processed_generated, processed_images]), spatial_squeeze=False)
+            processed_generated = tf.stack(processed_generated)
+            _, endpoints_dict = network_fn(tf.concat([processed_generated, processed_images], 0), spatial_squeeze=False)
             tf.logging.info('Loss network layers(You can define them in "content_layers" and "style_layers"):')
             for key in endpoints_dict:
                 tf.logging.info(key)
@@ -58,23 +58,23 @@ def main(FLAGS):
             loss = FLAGS.style_weight * style_loss + FLAGS.content_weight * content_loss + FLAGS.tv_weight * tv_loss
 
             """Add Summary"""
-            tf.scalar_summary('losses/content loss', content_loss)
-            tf.scalar_summary('losses/style loss', style_loss)
-            tf.scalar_summary('losses/regularizer loss', tv_loss)
+            tf.summary.scalar('losses/content_loss', content_loss)
+            tf.summary.scalar('losses/style_loss', style_loss)
+            tf.summary.scalar('losses/regularizer_loss', tv_loss)
 
-            tf.scalar_summary('weighted_losses/weighted content loss', content_loss * FLAGS.content_weight)
-            tf.scalar_summary('weighted_losses/weighted style loss', style_loss * FLAGS.style_weight)
-            tf.scalar_summary('weighted_losses/weighted regularizer loss', tv_loss * FLAGS.tv_weight)
-            tf.scalar_summary('total loss', loss)
+            tf.summary.scalar('weighted_losses/weighted_content_loss', content_loss * FLAGS.content_weight)
+            tf.summary.scalar('weighted_losses/weighted_style_loss', style_loss * FLAGS.style_weight)
+            tf.summary.scalar('weighted_losses/weighted_regularizer_loss', tv_loss * FLAGS.tv_weight)
+            tf.summary.scalar('total_loss', loss)
             for layer in FLAGS.style_layers:
-                tf.scalar_summary('style_losses/' + layer, style_loss_summary[layer])
-            tf.image_summary('generated', generated)
+                tf.summary.scalar('style_losses/' + layer, style_loss_summary[layer])
+            tf.summary.image('generated', generated)
             # tf.image_summary('processed_generated', processed_generated)  # May be better?
-            tf.image_summary('origin', tf.pack([
-                image_unprocessing_fn(image) for image in tf.unpack(processed_images, axis=0, num=FLAGS.batch_size)
+            tf.summary.image('origin', tf.stack([
+                image_unprocessing_fn(image) for image in tf.unstack(processed_images, axis=0, num=FLAGS.batch_size)
             ]))
-            summary = tf.merge_all_summaries()
-            writer = tf.train.SummaryWriter(training_path)
+            summary = tf.summary.merge_all()
+            writer = tf.summary.FileWriter(training_path)
 
             """Prepare to Train"""
             global_step = tf.Variable(0, name="global_step", trainable=False)
@@ -86,11 +86,11 @@ def main(FLAGS):
             train_op = tf.train.AdamOptimizer(1e-3).minimize(loss, global_step=global_step, var_list=variable_to_train)
 
             variables_to_restore = []
-            for v in tf.all_variables():
+            for v in tf.global_variables():
                 if not(v.name.startswith(FLAGS.loss_model)):
                     variables_to_restore.append(v)
             saver = tf.train.Saver(variables_to_restore, write_version=tf.train.SaverDef.V1)
-            sess.run([tf.initialize_all_variables(), tf.initialize_local_variables()])
+            sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
             init_func = utils._get_init_fn(FLAGS)
             init_func(sess)
             last_file = tf.train.latest_checkpoint(training_path)
@@ -108,6 +108,7 @@ def main(FLAGS):
                     elapsed_time = time.time() - start_time
                     start_time = time.time()
                     """logging"""
+                    # print(step)
                     if step % 10 == 0:
                         tf.logging.info('step: %d,  total Loss %f, secs/step: %f' % (step, loss_t, elapsed_time))
                     """summary"""

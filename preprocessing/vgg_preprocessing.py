@@ -73,7 +73,7 @@ def _crop(image, offset_height, offset_width, crop_height, crop_width):
         ['Rank of image must be equal to 3.'])
     cropped_shape = control_flow_ops.with_dependencies(
         [rank_assertion],
-        tf.pack([crop_height, crop_width, original_shape[2]]))
+        tf.stack([crop_height, crop_width, original_shape[2]]))
 
     # print(original_shape[0], crop_height)
     # print(original_shape[1], crop_width)
@@ -83,7 +83,7 @@ def _crop(image, offset_height, offset_width, crop_height, crop_width):
             tf.greater_equal(original_shape[1], crop_width)),
         ['Crop size greater than the image size.'])
 
-    offsets = tf.to_int32(tf.pack([offset_height, offset_width, 0]))
+    offsets = tf.to_int32(tf.stack([offset_height, offset_width, 0]))
 
     # Use tf.slice instead of crop_to_bounding box as it accepts tensors to
     # define the crop size.
@@ -228,10 +228,10 @@ def _mean_image_subtraction(image, means):
     if len(means) != num_channels:
         raise ValueError('len(means) must match the number of channels')
 
-    channels = tf.split(2, num_channels, image)
+    channels = tf.split(image, num_channels, 2)
     for i in range(num_channels):
         channels[i] -= means[i]
-    return tf.concat(2, channels)
+    return tf.concat(channels, 2)
 
 
 def _mean_image_add(image, means):
@@ -241,10 +241,10 @@ def _mean_image_add(image, means):
     if len(means) != num_channels:
         raise ValueError('len(means) must match the number of channels')
 
-    channels = tf.split(2, num_channels, image)
+    channels = tf.split(image, num_channels, 2)
     for i in range(num_channels):
         channels[i] += means[i]
-    return tf.concat(2, channels)
+    return tf.concat(channels, 2)
 
 
 def _smallest_size_at_least(height, width, target_height, target_width):

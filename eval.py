@@ -39,8 +39,8 @@ def main(_):
             image = tf.expand_dims(image, 0)
             generated = model.net(image, training=False)
             generated = tf.squeeze(generated, [0])
-            saver = tf.train.Saver(tf.all_variables(), write_version=tf.train.SaverDef.V1)
-            sess.run([tf.initialize_all_variables(), tf.initialize_local_variables()])
+            saver = tf.train.Saver(tf.global_variables(), write_version=tf.train.SaverDef.V1)
+            sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
             FLAGS.model_file = os.path.abspath(FLAGS.model_file)
             saver.restore(sess, FLAGS.model_file)
 
