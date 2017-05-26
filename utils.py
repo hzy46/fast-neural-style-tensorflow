@@ -51,6 +51,16 @@ def read_conf_file(conf_file):
     return FLAGS
 
 
+def mean_image_subtraction(image, means):
+    image = tf.to_float(image)
+
+    num_channels = 3
+    channels = tf.split(image, num_channels, 2)
+    for i in range(num_channels):
+        channels[i] -= means[i]
+    return tf.concat(channels, 2)
+
+
 if __name__ == '__main__':
     f = read_conf_file('conf/mosaic.yml')
     print(f.loss_model_file)

@@ -77,8 +77,8 @@ def batch_norm(x, size, training, decay=0.999):
 
 def relu(input):
     relu = tf.nn.relu(input)
-    # convert nan to zero
-    nan_to_zero = tf.where(tf.is_nan(relu), tf.zeros_like(relu), relu)
+    # convert nan to zero (nan != nan)
+    nan_to_zero = tf.where(tf.equal(relu, relu), relu, tf.zeros_like(relu))
     return nan_to_zero
 
 
