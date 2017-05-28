@@ -23,6 +23,8 @@ def parse_args():
 
 def main(FLAGS):
     style_features_t = losses.get_style_features(FLAGS)
+
+    # Make sure the training path exists.
     training_path = os.path.join(FLAGS.model_path, FLAGS.naming)
     if not(os.path.exists(training_path)):
         os.makedirs(training_path)
@@ -46,6 +48,8 @@ def main(FLAGS):
                                    ]
             processed_generated = tf.stack(processed_generated)
             _, endpoints_dict = network_fn(tf.concat([processed_generated, processed_images], 0), spatial_squeeze=False)
+
+            # Log the structure of loss network
             tf.logging.info('Loss network layers(You can define them in "content_layers" and "style_layers"):')
             for key in endpoints_dict:
                 tf.logging.info(key)
@@ -57,6 +61,7 @@ def main(FLAGS):
 
             loss = FLAGS.style_weight * style_loss + FLAGS.content_weight * content_loss + FLAGS.tv_weight * tv_loss
 
+            # Add Summary for visualization in tensorboard.
             """Add Summary"""
             tf.summary.scalar('losses/content_loss', content_loss)
             tf.summary.scalar('losses/style_loss', style_loss)
@@ -66,6 +71,7 @@ def main(FLAGS):
             tf.summary.scalar('weighted_losses/weighted_style_loss', style_loss * FLAGS.style_weight)
             tf.summary.scalar('weighted_losses/weighted_regularizer_loss', tv_loss * FLAGS.tv_weight)
             tf.summary.scalar('total_loss', loss)
+
             for layer in FLAGS.style_layers:
                 tf.summary.scalar('style_losses/' + layer, style_loss_summary[layer])
             tf.summary.image('generated', generated)
@@ -78,11 +84,11 @@ def main(FLAGS):
 
             """Prepare to Train"""
             global_step = tf.Variable(0, name="global_step", trainable=False)
+
             variable_to_train = []
             for variable in tf.trainable_variables():
                 if not(variable.name.startswith(FLAGS.loss_model)):
                     variable_to_train.append(variable)
-
             train_op = tf.train.AdamOptimizer(1e-3).minimize(loss, global_step=global_step, var_list=variable_to_train)
 
             variables_to_restore = []
@@ -90,9 +96,14 @@ def main(FLAGS):
                 if not(v.name.startswith(FLAGS.loss_model)):
                     variables_to_restore.append(v)
             saver = tf.train.Saver(variables_to_restore, write_version=tf.train.SaverDef.V1)
+
             sess.run([tf.global_variables_initializer(), tf.local_variables_initializer()])
+
+            # Restore variables for loss network.
             init_func = utils._get_init_fn(FLAGS)
             init_func(sess)
+
+            # Restore variables for training model if the checkpoint file exists.
             last_file = tf.train.latest_checkpoint(training_path)
             if last_file:
                 tf.logging.info('Restoring model from {}'.format(last_file))

@@ -2,7 +2,7 @@ import tensorflow as tf
 
 
 def conv2d(x, input_filters, output_filters, kernel, strides, mode='REFLECT'):
-    with tf.variable_scope('conv') as scope:
+    with tf.variable_scope('conv'):
 
         shape = [kernel, kernel, input_filters, output_filters]
         weight = tf.Variable(tf.truncated_normal(shape, stddev=0.1), name='weight')
@@ -11,7 +11,7 @@ def conv2d(x, input_filters, output_filters, kernel, strides, mode='REFLECT'):
 
 
 def conv2d_transpose(x, input_filters, output_filters, kernel, strides):
-    with tf.variable_scope('conv_transpose') as scope:
+    with tf.variable_scope('conv_transpose'):
 
         shape = [kernel, kernel, output_filters, input_filters]
         weight = tf.Variable(tf.truncated_normal(shape, stddev=0.1), name='weight')
@@ -32,7 +32,7 @@ def resize_conv2d(x, input_filters, output_filters, kernel, strides, training):
     through tf.image.resize_images, but we only know that for fixed image size, so we
     plumb through a "training" argument
     '''
-    with tf.variable_scope('conv_transpose') as scope:
+    with tf.variable_scope('conv_transpose'):
         height = x.get_shape()[1].value if training else tf.shape(x)[1]
         width = x.get_shape()[2].value if training else tf.shape(x)[2]
 
@@ -75,10 +75,17 @@ def batch_norm(x, size, training, decay=0.999):
     return tf.cond(training, batch_statistics, population_statistics)
 
 
+def relu(input):
+    relu = tf.nn.relu(input)
+    # convert nan to zero (nan != nan)
+    nan_to_zero = tf.where(tf.equal(relu, relu), relu, tf.zeros_like(relu))
+    return nan_to_zero
+
+
 def residual(x, filters, kernel, strides):
-    with tf.variable_scope('residual') as scope:
+    with tf.variable_scope('residual'):
         conv1 = conv2d(x, filters, filters, kernel, strides)
-        conv2 = conv2d(tf.nn.relu(conv1), filters, filters, kernel, strides)
+        conv2 = conv2d(relu(conv1), filters, filters, kernel, strides)
 
         residual = x + conv2
 
@@ -90,11 +97,11 @@ def net(image, training):
     image = tf.pad(image, [[0, 0], [10, 10], [10, 10], [0, 0]], mode='REFLECT')
 
     with tf.variable_scope('conv1'):
-        conv1 = tf.nn.relu(instance_norm(conv2d(image, 3, 32, 9, 1)))
+        conv1 = relu(instance_norm(conv2d(image, 3, 32, 9, 1)))
     with tf.variable_scope('conv2'):
-        conv2 = tf.nn.relu(instance_norm(conv2d(conv1, 32, 64, 3, 2)))
+        conv2 = relu(instance_norm(conv2d(conv1, 32, 64, 3, 2)))
     with tf.variable_scope('conv3'):
-        conv3 = tf.nn.relu(instance_norm(conv2d(conv2, 64, 128, 3, 2)))
+        conv3 = relu(instance_norm(conv2d(conv2, 64, 128, 3, 2)))
     with tf.variable_scope('res1'):
         res1 = residual(conv3, 128, 3, 1)
     with tf.variable_scope('res2'):
@@ -107,13 +114,13 @@ def net(image, training):
         res5 = residual(res4, 128, 3, 1)
     # print(res5.get_shape())
     with tf.variable_scope('deconv1'):
-        # deconv1 = tf.nn.relu(instance_norm(conv2d_transpose(res5, 128, 64, 3, 2)))
-        deconv1 = tf.nn.relu(instance_norm(resize_conv2d(res5, 128, 64, 3, 2, training)))
+        # deconv1 = relu(instance_norm(conv2d_transpose(res5, 128, 64, 3, 2)))
+        deconv1 = relu(instance_norm(resize_conv2d(res5, 128, 64, 3, 2, training)))
     with tf.variable_scope('deconv2'):
-        # deconv2 = tf.nn.relu(instance_norm(conv2d_transpose(deconv1, 64, 32, 3, 2)))
-        deconv2 = tf.nn.relu(instance_norm(resize_conv2d(deconv1, 64, 32, 3, 2, training)))
+        # deconv2 = relu(instance_norm(conv2d_transpose(deconv1, 64, 32, 3, 2)))
+        deconv2 = relu(instance_norm(resize_conv2d(deconv1, 64, 32, 3, 2, training)))
     with tf.variable_scope('deconv3'):
-        # deconv_test = tf.nn.relu(instance_norm(conv2d(deconv2, 32, 32, 2, 1)))
+        # deconv_test = relu(instance_norm(conv2d(deconv2, 32, 32, 2, 1)))
         deconv3 = tf.nn.tanh(instance_norm(conv2d(deconv2, 32, 3, 9, 1)))
 
     y = (deconv3 + 1) * 127.5
